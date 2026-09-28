@@ -42,10 +42,11 @@ export function HeroRecitation({
       const about = document.getElementById("about");
       if (about) {
         const rect = about.getBoundingClientRect();
-        return Math.max(rect.top + window.scrollY, 0);
+        // 95px offset so the title "لبنة المجتمع" is NOT covered by the navbar
+        return Math.max(rect.top + window.scrollY - 95, 0);
       }
       const hero = heroScrollRef.current;
-      return hero ? hero.offsetHeight : window.innerHeight;
+      return hero ? Math.max(hero.offsetHeight - 95, 0) : window.innerHeight;
     };
 
     // Smooth RAF auto-scroll with cubic easing and direct sound synthesis synchronization
@@ -72,7 +73,7 @@ export function HeroRecitation({
         const ease = easeInOutCubic(progress);
         window.scrollTo(0, startY + diff * ease);
 
-        // Drive the cloud sound directly with the smooth bell curve on every animation frame!
+        // Drive the soothing chime directly with the smooth bell curve on each frame
         const soundBell = Math.sin(Math.PI * progress);
         onScrollProgress?.(soundBell);
 
@@ -80,7 +81,7 @@ export function HeroRecitation({
           requestAnimationFrame(step);
         } else {
           window.scrollTo(0, targetY);
-          onScrollProgress?.(0); // completely silent upon arrival
+          onScrollProgress?.(0);
           setTimeout(() => {
             isAutoScrollingRef.current = false;
           }, 80);
@@ -94,7 +95,9 @@ export function HeroRecitation({
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const aboutTarget = getAboutTarget();
-        const progress = window.scrollY / Math.max(aboutTarget, 1);
+        // Cloud fades in over the pinned hero during the first 65% of the transition
+        const fadeZone = Math.max(aboutTarget * 0.65, 1);
+        const progress = window.scrollY / fadeZone;
         const clamped = Math.min(Math.max(progress, 0), 1);
 
         setHeroScrollProgress(clamped);
@@ -138,7 +141,7 @@ export function HeroRecitation({
       }
 
       // Case 2: At About Us, scrolling up -> auto-scroll straight back to Hero
-      if (currentY >= aboutTarget * 0.7 && currentY <= aboutTarget + 50 && e.deltaY < 0) {
+      if (currentY >= aboutTarget * 0.65 && currentY <= aboutTarget + 50 && e.deltaY < 0) {
         e.preventDefault();
         autoScrollTo(0, 850);
         return;
@@ -225,9 +228,9 @@ export function HeroRecitation({
     <div
       id="hero"
       ref={heroScrollRef}
-      className="h-screen relative shrink-0 w-full overflow-hidden"
+      className="h-[120vh] relative shrink-0 w-full"
     >
-      <div className="bg-[#f2f8fc] content-stretch flex flex-col h-full items-center relative w-full overflow-hidden">
+      <div className="bg-[#f2f8fc] content-stretch flex flex-col h-screen items-center sticky top-0 w-full overflow-hidden">
         <div className="absolute inset-0">
           {/* ── VIDEO background with bottom-fade mask + Ken Burns ──── */}
           <div

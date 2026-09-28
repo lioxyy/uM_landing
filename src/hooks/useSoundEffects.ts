@@ -234,9 +234,9 @@ export function useSoundEffects() {
   };
 }
 
-// ── useCloudScroll — calm, soothing, ethereal cloud ambient ───────────────────
-// Creates gentle warm atmospheric sound that breathes with the hero transition.
-// Auto-silences immediately if scrolling pauses, completely eliminating any stuck sound.
+// ── useCloudScroll — ultra-soothing celestial ambient chime ───────────────────
+// A whisper-soft, meditative glass-pad resonance (216Hz, 324Hz, 432Hz, 648Hz)
+// with delicate slow shimmer and zero harsh noise. Extremely gentle & soothing.
 export function useCloudScroll(ctxRef: React.MutableRefObject<AudioContext | null>) {
   const masterGain   = useRef<GainNode | null>(null);
   const started      = useRef(false);
@@ -247,72 +247,62 @@ export function useCloudScroll(ctxRef: React.MutableRefObject<AudioContext | nul
     if (started.current) return;
     started.current = true;
 
-    const sr = context.sampleRate;
     const master = context.createGain();
     master.gain.setValueAtTime(0, context.currentTime);
     master.connect(context.destination);
     masterGain.current = master;
 
-    // 1. Soft brownian/pink noise (warm, velvety breath of air — ZERO harsh hiss)
-    const bufLen = sr * 3;
-    const buf = context.createBuffer(1, bufLen, sr);
-    const d = buf.getChannelData(0);
-    let b0 = 0, b1 = 0, b2 = 0;
-    for (let i = 0; i < bufLen; i++) {
-      const white = Math.random() * 2 - 1;
-      b0 = 0.98 * b0 + white * 0.08;
-      b1 = 0.92 * b1 + white * 0.12;
-      b2 = 0.80 * b2 + white * 0.16;
-      d[i] = (b0 + b1 + b2) * 0.6;
-    }
-
-    const nSrc = context.createBufferSource();
-    nSrc.buffer = buf;
-    nSrc.loop = true;
-
-    // Gentle lowpass at 500Hz so it sounds like a warm, soothing breeze
-    const lp = context.createBiquadFilter();
-    lp.type = "lowpass";
-    lp.frequency.value = 500;
-    lp.Q.value = 0.5;
-
-    const noiseGain = context.createGain();
-    noiseGain.gain.value = 0.16;
-
-    nSrc.connect(lp);
-    lp.connect(noiseGain);
-    noiseGain.connect(master);
-    nSrc.start();
-
-    // 2. Calming sacred chord (C4 261.6Hz + G4 392Hz + C5 523.2Hz)
+    // 1. Warm meditative foundation — pure sine 216 Hz (A3)
     const osc1 = context.createOscillator();
     osc1.type = "sine";
-    osc1.frequency.value = 261.63; // C4
+    osc1.frequency.value = 216.0;
     const osc1Gain = context.createGain();
-    osc1Gain.gain.value = 0.035;
+    osc1Gain.gain.value = 0.018;
     osc1.connect(osc1Gain);
     osc1Gain.connect(master);
     osc1.start();
 
+    // 2. Harmonious fifth — 324 Hz (E4)
     const osc2 = context.createOscillator();
     osc2.type = "sine";
-    osc2.frequency.value = 392.00; // G4
+    osc2.frequency.value = 324.0;
     const osc2Gain = context.createGain();
-    osc2Gain.gain.value = 0.026;
+    osc2Gain.gain.value = 0.014;
     osc2.connect(osc2Gain);
     osc2Gain.connect(master);
     osc2.start();
 
+    // 3. Sacred chime tone — 432 Hz (A4)
     const osc3 = context.createOscillator();
     osc3.type = "sine";
-    osc3.frequency.value = 523.25; // C5
+    osc3.frequency.value = 432.0;
     const osc3Gain = context.createGain();
-    osc3Gain.gain.value = 0.016;
+    osc3Gain.gain.value = 0.011;
     osc3.connect(osc3Gain);
     osc3Gain.connect(master);
     osc3.start();
 
-    nodes.current = [nSrc, osc1, osc2, osc3, lp, noiseGain, osc1Gain, osc2Gain, osc3Gain, master];
+    // 4. Subtle shimmer overtone — 433.2 Hz (gentle +1.2Hz organic chorus beat)
+    const osc4 = context.createOscillator();
+    osc4.type = "sine";
+    osc4.frequency.value = 433.2;
+    const osc4Gain = context.createGain();
+    osc4Gain.gain.value = 0.009;
+    osc4.connect(osc4Gain);
+    osc4Gain.connect(master);
+    osc4.start();
+
+    // 5. Crystalline bell harmonic — 648 Hz (E5)
+    const osc5 = context.createOscillator();
+    osc5.type = "sine";
+    osc5.frequency.value = 648.0;
+    const osc5Gain = context.createGain();
+    osc5Gain.gain.value = 0.005;
+    osc5.connect(osc5Gain);
+    osc5Gain.connect(master);
+    osc5.start();
+
+    nodes.current = [osc1, osc2, osc3, osc4, osc5, osc1Gain, osc2Gain, osc3Gain, osc4Gain, osc5Gain, master];
   };
 
   const setCloudGain = (p: number) => {
@@ -337,16 +327,16 @@ export function useCloudScroll(ctxRef: React.MutableRefObject<AudioContext | nul
       return;
     }
 
-    // Direct master scaling: p is between 0 and 1
-    const target = Math.min(Math.max(p, 0), 1);
+    // Direct soothing scaling: peak master gain is gentle (0.45)
+    const target = Math.min(Math.max(p, 0), 1) * 0.45;
     g.gain.setTargetAtTime(target, context.currentTime, 0.06);
 
-    // Auto-silence if scrolling pauses for more than 90ms
+    // Auto-silence when scrolling pauses for more than 75ms
     silenceTimer.current = window.setTimeout(() => {
       if (masterGain.current && context.state === "running") {
         masterGain.current.gain.setTargetAtTime(0, context.currentTime, 0.08);
       }
-    }, 90);
+    }, 75);
   };
 
   const stop = () => {
