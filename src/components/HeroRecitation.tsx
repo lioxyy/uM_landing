@@ -49,6 +49,13 @@ export function HeroRecitation({
       return hero ? Math.max(hero.offsetHeight - 95, 0) : window.innerHeight;
     };
 
+    // The hero is h-[120vh] with a 100vh viewport → scrollable range = 20vh
+    const getHeroScrollEnd = () => {
+      const hero = heroScrollRef.current;
+      if (!hero) return 0;
+      return hero ? Math.max(hero.offsetHeight - window.innerHeight, 0) : 0;
+    };
+
     // Smooth RAF auto-scroll with cubic easing and direct sound synthesis synchronization
     const autoScrollTo = (targetY: number, duration = 2600) => {
       if (isAutoScrollingRef.current) return;
@@ -73,7 +80,6 @@ export function HeroRecitation({
         const ease = easeInOutCubic(progress);
         window.scrollTo(0, startY + diff * ease);
 
-        // Drive the soothing chime directly with the smooth bell curve on each frame
         const soundBell = Math.sin(Math.PI * progress);
         onScrollProgress?.(soundBell);
 
@@ -91,13 +97,14 @@ export function HeroRecitation({
       requestAnimationFrame(step);
     };
 
+
+
     const update = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const aboutTarget = getAboutTarget();
-        // Cloud fades in over the pinned hero during the first 65% of the transition
-        const fadeZone = Math.max(aboutTarget * 0.65, 1);
-        const progress = window.scrollY / fadeZone;
+        // Fade progress relative to the hero's actual scroll range (~20vh), not aboutTarget
+        const heroScrollEnd = Math.max(getHeroScrollEnd(), 1);
+        const progress = window.scrollY / heroScrollEnd;
         const clamped = Math.min(Math.max(progress, 0), 1);
 
         setHeroScrollProgress(clamped);
@@ -111,12 +118,12 @@ export function HeroRecitation({
           }
         }
 
-        // Safety snap if user dragged scrollbar and let go midway
+        // Safety snap: only while user is mid-way through the hero scroll zone
         if (clamped > 0.08 && clamped < 0.92 && !isAutoScrollingRef.current) {
           if (snapTimer) clearTimeout(snapTimer);
           snapTimer = setTimeout(() => {
             if (isAutoScrollingRef.current) return;
-            const target = clamped < 0.5 ? 0 : aboutTarget;
+            const target = clamped < 0.5 ? 0 : getAboutTarget();
             autoScrollTo(target, 1600);
           }, 120);
         }
@@ -125,7 +132,7 @@ export function HeroRecitation({
 
     // Auto-scroll triggers on wheel
     const onWheel = (e: WheelEvent) => {
-      const aboutTarget = getAboutTarget();
+      const heroScrollEnd = getHeroScrollEnd();
       const currentY = window.scrollY;
 
       if (isAutoScrollingRef.current) {
@@ -133,24 +140,18 @@ export function HeroRecitation({
         return;
       }
 
-      // Case 1: In the hero, scrolling down -> auto-scroll straight to About Us
-      if (currentY < aboutTarget * 0.45 && e.deltaY > 0) {
+      // Within the hero scroll zone → snap to About Us on scroll down
+      if (currentY <= heroScrollEnd && e.deltaY > 0) {
         e.preventDefault();
-        autoScrollTo(aboutTarget, 2600);
+        autoScrollTo(getAboutTarget(), 2600);
         return;
       }
 
-      // Case 2: At About Us, scrolling up -> auto-scroll straight back to Hero
-      if (currentY >= aboutTarget * 0.65 && currentY <= aboutTarget + 50 && e.deltaY < 0) {
+      // Landed at About Us and scrolling up → snap back to hero top
+      if (currentY > heroScrollEnd && currentY <= getAboutTarget() + 60 && e.deltaY < 0) {
         e.preventDefault();
         autoScrollTo(0, 2600);
         return;
-      }
-
-      // Case 3: In the middle transition of hero
-      if (currentY > 0 && currentY < aboutTarget) {
-        e.preventDefault();
-        autoScrollTo(e.deltaY > 0 ? aboutTarget : 0, 2000);
       }
     };
 
@@ -165,16 +166,16 @@ export function HeroRecitation({
         e.preventDefault();
         return;
       }
-      const aboutTarget = getAboutTarget();
+      const heroScrollEnd = getHeroScrollEnd();
       const currentY = window.scrollY;
       const deltaY = touchStartY - e.touches[0].clientY;
 
       if (Math.abs(deltaY) < 14) return;
 
-      if (currentY < aboutTarget * 0.45 && deltaY > 0) {
+      if (currentY <= heroScrollEnd && deltaY > 0) {
         e.preventDefault();
-        autoScrollTo(aboutTarget, 2600);
-      } else if (currentY <= aboutTarget + 50 && deltaY < 0) {
+        autoScrollTo(getAboutTarget(), 2600);
+      } else if (currentY > heroScrollEnd && currentY <= getAboutTarget() + 60 && deltaY < 0) {
         e.preventDefault();
         autoScrollTo(0, 2600);
       }
@@ -188,13 +189,13 @@ export function HeroRecitation({
         }
         return;
       }
-      const aboutTarget = getAboutTarget();
+      const heroScrollEnd = getHeroScrollEnd();
       const currentY = window.scrollY;
 
-      if (["ArrowDown", "PageDown", " "].includes(e.key) && currentY < aboutTarget * 0.45) {
+      if (["ArrowDown", "PageDown", " "].includes(e.key) && currentY <= heroScrollEnd) {
         e.preventDefault();
-        autoScrollTo(aboutTarget, 2600);
-      } else if (["ArrowUp", "PageUp"].includes(e.key) && currentY <= aboutTarget + 50) {
+        autoScrollTo(getAboutTarget(), 2600);
+      } else if (["ArrowUp", "PageUp"].includes(e.key) && currentY > heroScrollEnd && currentY <= getAboutTarget() + 60) {
         e.preventDefault();
         autoScrollTo(0, 2600);
       }
