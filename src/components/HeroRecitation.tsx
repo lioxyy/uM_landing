@@ -15,6 +15,8 @@ interface HeroRecitationProps {
   onToggleRecitation: () => void;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onVideoCanPlay?: () => void;
+  onCloudFade?: () => void;
+  onScrollProgress?: (p: number) => void;
 }
 
 export function HeroRecitation({
@@ -26,10 +28,13 @@ export function HeroRecitation({
   onToggleRecitation,
   videoRef,
   onVideoCanPlay,
+  onCloudFade,
+  onScrollProgress,
 }: HeroRecitationProps) {
   const heroScrollRef = useRef<HTMLDivElement | null>(null);
   const [heroScrollProgress, setHeroScrollProgress] = useState(0);
   const [heroVideoVisible, setHeroVideoVisible] = useState(false);
+  const cloudSoundFired = useRef(false);
 
   useEffect(() => {
     let frame = 0;
@@ -43,7 +48,16 @@ export function HeroRecitation({
         const start = section.getBoundingClientRect().top + window.scrollY;
         const distance = Math.max(section.offsetHeight - window.innerHeight, 1);
         const progress = (window.scrollY - start) / distance;
-        setHeroScrollProgress(Math.min(Math.max(progress, 0), 1));
+        const clamped = Math.min(Math.max(progress, 0), 1);
+        setHeroScrollProgress(clamped);
+        // Bell curve: 0 at start, peaks mid-scroll, back to 0 when hero is gone
+        onScrollProgress?.(Math.sin(Math.PI * clamped));
+
+        // Fire cloud sound once when fade overlay first appears
+        if (clamped > 0.04 && !cloudSoundFired.current) {
+          cloudSoundFired.current = true;
+          onCloudFade?.();
+        }
       });
     };
 

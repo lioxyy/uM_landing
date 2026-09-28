@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 
-export type SoundEffect = "appear" | "click" | "leave" | "cta";
+export type SoundEffect = "appear" | "click" | "leave" | "cta" | "cloud";
 
 
 export function playSoundEffect(
@@ -84,6 +84,7 @@ export function playSoundEffect(
 
     return;
   }
+
 
   // ── LEAVE — airy sweep out (existing behaviour, kept) ────────────────────
   if (sound === "leave") {
@@ -231,4 +232,86 @@ export function useSoundEffects() {
     playSfx,
     resumeContext,
   };
+}
+
+// ── useCloudScroll — scroll-driven airy cloud ambient ────────────────────────
+// Creates looping audio nodes whose volume tracks heroScrollProgress in real time.
+// Call setCloudGain(p) every scroll frame with the smoothstepped progress (0–1).
+export function useCloudScroll(ctxRef: React.MutableRefObject<AudioContext | null>) {
+  const masterGain = useRef<GainNode | null>(null);
+  const started    = useRef(false);
+  const nodes      = useRef<AudioNode[]>([]);
+
+  const start = (context: AudioContext) => {
+    if (started.current) return;
+    started.current = true;
+
+    const sr = context.sampleRate;
+    const master = context.createGain();
+    master.gain.setValueAtTime(0, context.currentTime);
+    master.connect(context.destination);
+    masterGain.current = master;
+
+    // Soft airy noise — filtered above 800Hz, no low rumble
+    const bufLen = sr * 4;
+    const buf = context.createBuffer(1, bufLen, sr);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+
+    const nSrc = context.createBufferSource();
+    nSrc.buffer = buf;
+    nSrc.loop = true;
+
+    const hp = context.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 800;
+    hp.Q.value = 0.3;
+
+    const bp = context.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1400;
+    bp.Q.value = 0.4;
+
+    const noiseGain = context.createGain();
+    noiseGain.gain.value = 0.12;
+
+    nSrc.connect(hp);
+    hp.connect(bp);
+    bp.connect(noiseGain);
+    noiseGain.connect(master);
+    nSrc.start();
+
+    // Gentle 528Hz sine — barely perceptible warmth
+    const osc = context.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 528;
+    const oscGain = context.createGain();
+    oscGain.gain.value = 0.025;
+    osc.connect(oscGain);
+    oscGain.connect(master);
+    osc.start();
+
+    nodes.current = [nSrc, osc, hp, bp, noiseGain, oscGain, master];
+  };
+
+  const setCloudGain = (p: number) => {
+    const context = ctxRef.current;
+    if (!context || context.state !== "running") return;
+    if (p > 0 && !started.current) start(context);
+    const g = masterGain.current;
+    if (!g) return;
+    g.gain.setTargetAtTime(p, context.currentTime, 0.08);
+  };
+
+  const stop = () => {
+    nodes.current.forEach(n => {
+      try { (n as AudioScheduledSourceNode).stop?.(); } catch (_) {}
+    });
+    masterGain.current?.disconnect();
+    nodes.current = [];
+    started.current = false;
+    masterGain.current = null;
+  };
+
+  return { setCloudGain, stop };
 }

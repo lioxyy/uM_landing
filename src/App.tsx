@@ -8,7 +8,7 @@ import { ActivitiesSection } from "./components/ActivitiesSection";
 import { ArticlesSection } from "./components/ArticlesSection";
 import { CtaSection } from "./components/CtaSection";
 import { Footer } from "./components/Footer";
-import { useSoundEffects } from "./hooks/useSoundEffects";
+import { useSoundEffects, useCloudScroll } from "./hooks/useSoundEffects";
 import { useQuranSync } from "./hooks/useQuranSync";
 
 export default function App() {
@@ -23,6 +23,7 @@ export default function App() {
   // Sound effects and Quran recitation hooks
   const { sfxContext, appearanceSoundPlayed, playSfx, resumeContext } =
     useSoundEffects();
+  const { setCloudGain } = useCloudScroll(sfxContext);
   const {
     isRecitationPlaying,
     recitationReady,
@@ -135,6 +136,7 @@ export default function App() {
         onVideoCanPlay={() => {
           heroVideoReady.current = true;
         }}
+        onScrollProgress={setCloudGain}
       />
 
       {/* ── Main Content Sections ─────────────────────────────────────── */}
