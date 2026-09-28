@@ -254,62 +254,76 @@ export function useCloudScroll(ctxRef: React.MutableRefObject<AudioContext | nul
     masterGain.current = master;
 
     // 1. Soft brownian/pink noise (warm, velvety breath of air — ZERO harsh hiss)
-    const bufLen = sr * 4;
+    const bufLen = sr * 3;
     const buf = context.createBuffer(1, bufLen, sr);
     const d = buf.getChannelData(0);
     let b0 = 0, b1 = 0, b2 = 0;
     for (let i = 0; i < bufLen; i++) {
       const white = Math.random() * 2 - 1;
-      b0 = 0.99 * b0 + white * 0.05;
-      b1 = 0.95 * b1 + white * 0.08;
-      b2 = 0.85 * b2 + white * 0.12;
-      d[i] = (b0 + b1 + b2) * 0.45;
+      b0 = 0.98 * b0 + white * 0.08;
+      b1 = 0.92 * b1 + white * 0.12;
+      b2 = 0.80 * b2 + white * 0.16;
+      d[i] = (b0 + b1 + b2) * 0.6;
     }
 
     const nSrc = context.createBufferSource();
     nSrc.buffer = buf;
     nSrc.loop = true;
 
-    // Gentle lowpass at 360Hz so it sounds like a whisper of soft air
+    // Gentle lowpass at 500Hz so it sounds like a warm, soothing breeze
     const lp = context.createBiquadFilter();
     lp.type = "lowpass";
-    lp.frequency.value = 360;
-    lp.Q.value = 0.4;
+    lp.frequency.value = 500;
+    lp.Q.value = 0.5;
 
     const noiseGain = context.createGain();
-    noiseGain.gain.value = 0.03;
+    noiseGain.gain.value = 0.16;
 
     nSrc.connect(lp);
     lp.connect(noiseGain);
     noiseGain.connect(master);
     nSrc.start();
 
-    // 2. Calming dual-sine ambient chord (F4 349.2Hz + C5 523.2Hz)
+    // 2. Calming sacred chord (C4 261.6Hz + G4 392Hz + C5 523.2Hz)
     const osc1 = context.createOscillator();
     osc1.type = "sine";
-    osc1.frequency.value = 349.23;
+    osc1.frequency.value = 261.63; // C4
     const osc1Gain = context.createGain();
-    osc1Gain.gain.value = 0.007;
+    osc1Gain.gain.value = 0.035;
     osc1.connect(osc1Gain);
     osc1Gain.connect(master);
     osc1.start();
 
     const osc2 = context.createOscillator();
     osc2.type = "sine";
-    osc2.frequency.value = 523.25;
+    osc2.frequency.value = 392.00; // G4
     const osc2Gain = context.createGain();
-    osc2Gain.gain.value = 0.004;
+    osc2Gain.gain.value = 0.026;
     osc2.connect(osc2Gain);
     osc2Gain.connect(master);
     osc2.start();
 
-    nodes.current = [nSrc, osc1, osc2, lp, noiseGain, osc1Gain, osc2Gain, master];
+    const osc3 = context.createOscillator();
+    osc3.type = "sine";
+    osc3.frequency.value = 523.25; // C5
+    const osc3Gain = context.createGain();
+    osc3Gain.gain.value = 0.016;
+    osc3.connect(osc3Gain);
+    osc3Gain.connect(master);
+    osc3.start();
+
+    nodes.current = [nSrc, osc1, osc2, osc3, lp, noiseGain, osc1Gain, osc2Gain, osc3Gain, master];
   };
 
   const setCloudGain = (p: number) => {
     const context = ctxRef.current;
-    if (!context || context.state !== "running") return;
-    if (p > 0.005 && !started.current) start(context);
+    if (!context) return;
+    if (context.state === "suspended") {
+      context.resume().catch(() => {});
+    }
+    if (p > 0.005 && !started.current && context.state === "running") {
+      start(context);
+    }
     const g = masterGain.current;
     if (!g) return;
 
@@ -318,21 +332,21 @@ export function useCloudScroll(ctxRef: React.MutableRefObject<AudioContext | nul
       silenceTimer.current = null;
     }
 
-    if (p <= 0.01) {
+    if (p <= 0.02) {
       g.gain.setTargetAtTime(0, context.currentTime, 0.04);
       return;
     }
 
-    // Set smooth gentle gain (max 0.03)
-    const target = Math.min(Math.max(p, 0), 1) * 0.03;
+    // Direct master scaling: p is between 0 and 1
+    const target = Math.min(Math.max(p, 0), 1);
     g.gain.setTargetAtTime(target, context.currentTime, 0.06);
 
-    // Auto-silence if scrolling pauses for more than 60ms
+    // Auto-silence if scrolling pauses for more than 90ms
     silenceTimer.current = window.setTimeout(() => {
       if (masterGain.current && context.state === "running") {
         masterGain.current.gain.setTargetAtTime(0, context.currentTime, 0.08);
       }
-    }, 60);
+    }, 90);
   };
 
   const stop = () => {

@@ -32,24 +32,23 @@ export function HeroRecitation({
   const heroScrollRef = useRef<HTMLDivElement | null>(null);
   const [heroScrollProgress, setHeroScrollProgress] = useState(0);
   const [heroVideoVisible, setHeroVideoVisible] = useState(false);
-  const scrollProgressRef = useRef(0);
-  const heroBoundsRef = useRef({ sectionStart: 0, distance: 1 });
   const isAutoScrollingRef = useRef(false);
 
   useEffect(() => {
     let frame = 0;
-    let lastScrollY = window.scrollY;
     let snapTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const computeBounds = () => {
-      const section = heroScrollRef.current;
-      if (!section) return;
-      const sectionStart = section.getBoundingClientRect().top + window.scrollY;
-      const distance = Math.max(section.offsetHeight - window.innerHeight, 1);
-      heroBoundsRef.current = { sectionStart, distance };
+    const getAboutTarget = () => {
+      const about = document.getElementById("about");
+      if (about) {
+        const rect = about.getBoundingClientRect();
+        return Math.max(rect.top + window.scrollY, 0);
+      }
+      const hero = heroScrollRef.current;
+      return hero ? hero.offsetHeight : window.innerHeight;
     };
 
-    // Smooth RAF auto-scroll with cubic easing
+    // Smooth RAF auto-scroll with cubic easing and direct sound synthesis synchronization
     const autoScrollTo = (targetY: number, duration = 850) => {
       if (isAutoScrollingRef.current) return;
       isAutoScrollingRef.current = true;
@@ -58,6 +57,7 @@ export function HeroRecitation({
 
       if (Math.abs(diff) < 2) {
         window.scrollTo(0, targetY);
+        onScrollProgress?.(0);
         isAutoScrollingRef.current = false;
         return;
       }
@@ -72,10 +72,15 @@ export function HeroRecitation({
         const ease = easeInOutCubic(progress);
         window.scrollTo(0, startY + diff * ease);
 
+        // Drive the cloud sound directly with the smooth bell curve on every animation frame!
+        const soundBell = Math.sin(Math.PI * progress);
+        onScrollProgress?.(soundBell);
+
         if (progress < 1) {
           requestAnimationFrame(step);
         } else {
           window.scrollTo(0, targetY);
+          onScrollProgress?.(0); // completely silent upon arrival
           setTimeout(() => {
             isAutoScrollingRef.current = false;
           }, 80);
@@ -88,36 +93,27 @@ export function HeroRecitation({
     const update = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const section = heroScrollRef.current;
-        if (!section) return;
-
-        const { sectionStart, distance } = heroBoundsRef.current;
-        const progress = (window.scrollY - sectionStart) / distance;
+        const aboutTarget = getAboutTarget();
+        const progress = window.scrollY / Math.max(aboutTarget, 1);
         const clamped = Math.min(Math.max(progress, 0), 1);
 
-        // Velocity for sound — px moved since last frame
-        const velocity = Math.abs(window.scrollY - lastScrollY);
-        lastScrollY = window.scrollY;
-
-        scrollProgressRef.current = clamped;
         setHeroScrollProgress(clamped);
 
-        if (clamped <= 0.01 || clamped >= 0.99) {
-          onScrollProgress?.(0);
-        } else {
-          // Bell curve: 0 at start, peak at mid-scroll, 0 at end
-          const bellCurve = Math.sin(Math.PI * clamped);
-          const speedFactor = Math.min(Math.max(velocity / 8, 0.4), 1);
-          onScrollProgress?.(bellCurve * speedFactor);
+        if (!isAutoScrollingRef.current) {
+          if (clamped <= 0.01 || clamped >= 0.99) {
+            onScrollProgress?.(0);
+          } else {
+            const bellCurve = Math.sin(Math.PI * clamped);
+            onScrollProgress?.(bellCurve);
+          }
         }
 
         // Safety snap if user dragged scrollbar and let go midway
-        if (clamped > 0.05 && clamped < 0.95 && !isAutoScrollingRef.current) {
+        if (clamped > 0.08 && clamped < 0.92 && !isAutoScrollingRef.current) {
           if (snapTimer) clearTimeout(snapTimer);
           snapTimer = setTimeout(() => {
             if (isAutoScrollingRef.current) return;
-            const { sectionStart: s, distance: d } = heroBoundsRef.current;
-            const target = scrollProgressRef.current < 0.5 ? s : s + d;
+            const target = clamped < 0.5 ? 0 : aboutTarget;
             autoScrollTo(target, 600);
           }, 120);
         }
@@ -126,7 +122,7 @@ export function HeroRecitation({
 
     // Auto-scroll triggers on wheel
     const onWheel = (e: WheelEvent) => {
-      const { sectionStart, distance } = heroBoundsRef.current;
+      const aboutTarget = getAboutTarget();
       const currentY = window.scrollY;
 
       if (isAutoScrollingRef.current) {
@@ -134,24 +130,24 @@ export function HeroRecitation({
         return;
       }
 
-      // Case 1: In the hero top area, scrolling down -> auto-scroll to About Us
-      if (currentY < sectionStart + distance * 0.45 && e.deltaY > 0) {
+      // Case 1: In the hero, scrolling down -> auto-scroll straight to About Us
+      if (currentY < aboutTarget * 0.45 && e.deltaY > 0) {
         e.preventDefault();
-        autoScrollTo(sectionStart + distance, 850);
+        autoScrollTo(aboutTarget, 850);
         return;
       }
 
-      // Case 2: Near bottom of hero / at About Us, scrolling up -> auto-scroll back to Hero
-      if (currentY >= sectionStart + distance * 0.75 && currentY <= sectionStart + distance + 30 && e.deltaY < 0) {
+      // Case 2: At About Us, scrolling up -> auto-scroll straight back to Hero
+      if (currentY >= aboutTarget * 0.7 && currentY <= aboutTarget + 50 && e.deltaY < 0) {
         e.preventDefault();
-        autoScrollTo(sectionStart, 850);
+        autoScrollTo(0, 850);
         return;
       }
 
-      // Case 3: In the middle of hero
-      if (currentY > sectionStart && currentY < sectionStart + distance) {
+      // Case 3: In the middle transition of hero
+      if (currentY > 0 && currentY < aboutTarget) {
         e.preventDefault();
-        autoScrollTo(e.deltaY > 0 ? sectionStart + distance : sectionStart, 700);
+        autoScrollTo(e.deltaY > 0 ? aboutTarget : 0, 700);
       }
     };
 
@@ -166,18 +162,18 @@ export function HeroRecitation({
         e.preventDefault();
         return;
       }
-      const { sectionStart, distance } = heroBoundsRef.current;
+      const aboutTarget = getAboutTarget();
       const currentY = window.scrollY;
       const deltaY = touchStartY - e.touches[0].clientY;
 
       if (Math.abs(deltaY) < 14) return;
 
-      if (currentY < sectionStart + distance * 0.45 && deltaY > 0) {
+      if (currentY < aboutTarget * 0.45 && deltaY > 0) {
         e.preventDefault();
-        autoScrollTo(sectionStart + distance, 850);
-      } else if (currentY <= sectionStart + distance + 30 && deltaY < 0) {
+        autoScrollTo(aboutTarget, 850);
+      } else if (currentY <= aboutTarget + 50 && deltaY < 0) {
         e.preventDefault();
-        autoScrollTo(sectionStart, 850);
+        autoScrollTo(0, 850);
       }
     };
 
@@ -189,22 +185,21 @@ export function HeroRecitation({
         }
         return;
       }
-      const { sectionStart, distance } = heroBoundsRef.current;
+      const aboutTarget = getAboutTarget();
       const currentY = window.scrollY;
 
-      if (["ArrowDown", "PageDown", " "].includes(e.key) && currentY < sectionStart + distance * 0.45) {
+      if (["ArrowDown", "PageDown", " "].includes(e.key) && currentY < aboutTarget * 0.45) {
         e.preventDefault();
-        autoScrollTo(sectionStart + distance, 850);
-      } else if (["ArrowUp", "PageUp"].includes(e.key) && currentY <= sectionStart + distance + 30) {
+        autoScrollTo(aboutTarget, 850);
+      } else if (["ArrowUp", "PageUp"].includes(e.key) && currentY <= aboutTarget + 50) {
         e.preventDefault();
-        autoScrollTo(sectionStart, 850);
+        autoScrollTo(0, 850);
       }
     };
 
-    computeBounds();
     update();
     window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", () => { computeBounds(); update(); });
+    window.addEventListener("resize", update);
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: false });
@@ -214,7 +209,7 @@ export function HeroRecitation({
       cancelAnimationFrame(frame);
       if (snapTimer) clearTimeout(snapTimer);
       window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", computeBounds);
+      window.removeEventListener("resize", update);
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
@@ -230,9 +225,9 @@ export function HeroRecitation({
     <div
       id="hero"
       ref={heroScrollRef}
-      className="h-[170vh] relative shrink-0 w-full"
+      className="h-screen relative shrink-0 w-full overflow-hidden"
     >
-      <div className="bg-[#f2f8fc] content-stretch flex flex-col h-screen items-center sticky top-0 w-full overflow-hidden">
+      <div className="bg-[#f2f8fc] content-stretch flex flex-col h-full items-center relative w-full overflow-hidden">
         <div className="absolute inset-0">
           {/* ── VIDEO background with bottom-fade mask + Ken Burns ──── */}
           <div
