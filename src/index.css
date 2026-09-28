@@ -1,0 +1,587 @@
+@import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+@import 'tailwindcss';
+
+/* ── Alyamama variable font (resolved via Figma CDN) ─────────────────────── */
+@font-face {
+  font-family: 'Alyamama:Bold';
+  font-style: normal;
+  font-weight: 700;
+  src: url('https://static.figma.com/font/Alyamama_wght__1') format('woff2');
+}
+@font-face {
+  font-family: 'Alyamama:Medium';
+  font-style: normal;
+  font-weight: 500;
+  src: url('https://static.figma.com/font/Alyamama_wght__1') format('woff2');
+}
+@font-face {
+  font-family: 'Alyamama:Regular';
+  font-style: normal;
+  font-weight: 400;
+  src: url('https://static.figma.com/font/Alyamama_wght__1') format('woff2');
+}
+@font-face {
+  font-family: 'Alyamama:SemiBold';
+  font-style: normal;
+  font-weight: 600;
+  src: url('https://static.figma.com/font/Alyamama_wght__1') format('woff2');
+}
+
+/* ── Cairo variable font (resolved via Figma CDN) ───────────────────────── */
+@font-face {
+  font-family: 'Cairo:Black';
+  font-style: normal;
+  font-weight: 900;
+  src: url('https://static.figma.com/font/Cairo_slnt_wght__1') format('woff2');
+}
+
+/* ── Blocked fonts — fallbacks ──────────────────────────────────────────── */
+@font-face {
+  font-family: 'Khalid Art bold:Regular';
+  font-style: normal;
+  font-weight: 700;
+  src: url('/fonts/Khalid-Art-Bold.ttf') format('truetype'),
+       local('Khalid Art bold'),
+       local('Noto Sans Arabic Black'),
+       local('Noto Sans Arabic');
+}
+@font-face {
+  font-family: 'KFGQPC Uthmanic Script HAFS:Regular';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Scheherazade New');
+}
+@font-face {
+  font-family: 'Alyamama SemiBold:Regular';
+  font-style: normal;
+  font-weight: 600;
+  src: url('https://static.figma.com/font/Alyamama_wght__1') format('woff2');
+}
+@font-face {
+  font-family: 'Dubai:Bold';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Noto Sans Arabic Bold'), local('Noto Sans Arabic');
+}
+@font-face {
+  font-family: 'Gilroy-SemiBold:☞';
+  font-style: normal;
+  font-weight: 600;
+  src: local('Inter SemiBold'), local('Inter');
+}
+
+/* ── Global reset ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; direction: rtl; }
+body { direction: rtl; background-color: #f2f8fc; overflow-x: hidden; }
+
+/* ── Onboarding: click unlocks recitation, then reveals the landing page ── */
+.onboarding-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: block;
+  width: 100%;
+  min-height: 100dvh;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: #eef6fa;
+  color: #243245;
+  cursor: pointer;
+  appearance: none;
+}
+
+.onboarding-splash__background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  transform: scale(1);
+  transform-origin: center;
+  transition: transform 1.9s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.onboarding-splash__content {
+  position: absolute;
+  top: 32.222%;
+  left: 50%;
+  display: flex;
+  width: min(640px, 90vw);
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  transform: translateX(-50%);
+  transition:
+    opacity 0.5s ease,
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.onboarding-splash__ring {
+  position: relative;
+  display: flex;
+  width: 130px;
+  height: 130px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.onboarding-splash__ring::before,
+.onboarding-splash__ring::after {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(13, 233, 195, 0.48);
+  border-radius: 50%;
+  content: '';
+  pointer-events: none;
+  transform: scale(0.72);
+  transition: border-color 0.45s ease;
+  animation: onboardingRipple 3s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+}
+
+.onboarding-splash__ring::after {
+  animation-delay: 1.5s;
+}
+
+.onboarding-splash__ring:has(.onboarding-splash__icon:hover)::before,
+.onboarding-splash__ring:has(.onboarding-splash__icon:hover)::after {
+  border-color: rgba(76, 255, 224, 0.82);
+}
+
+.onboarding-splash__icon {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 96px;
+  height: 96px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #0de9c3;
+  box-shadow:
+    inset 0 3px 8px rgba(255, 255, 255, 0.53),
+    0 4px 8px rgba(13, 233, 195, 0.33);
+  transition:
+    background-color 0.45s ease,
+    box-shadow 0.45s ease,
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.onboarding-splash__icon:hover {
+  background: #5affe0;
+  box-shadow:
+    inset 0 3px 9px rgba(255, 255, 255, 0.72),
+    0 6px 18px rgba(56, 255, 221, 0.48),
+    0 0 42px rgba(76, 255, 224, 0.3);
+  transform: translateY(-2px) scale(1.055);
+}
+
+.onboarding-splash__icon:active {
+  transform: translateY(0) scale(1.015);
+}
+
+.onboarding-splash__icon img {
+  width: 56px;
+  height: 56px;
+}
+
+.onboarding-splash__copy {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  transition:
+    opacity 0.65s ease,
+    filter 0.65s ease,
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.onboarding-splash__heading {
+  width: 100%;
+  font-family: 'Scheherazade New', serif;
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 1.56px;
+}
+
+.onboarding-splash__subtitle {
+  width: 100%;
+  font-family: 'Alyamama:Regular', 'Noto Sans Arabic', sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+  color: rgba(36, 50, 69, 0.8);
+}
+
+.onboarding-splash--ready .onboarding-splash__background {
+  animation: onboardingBackgroundEnter 2.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.onboarding-splash--ready .onboarding-splash__content {
+  animation: onboardingContentEnter 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.3s both;
+}
+
+.onboarding-splash--hiding .onboarding-splash__content,
+.onboarding-splash--zooming .onboarding-splash__content,
+.onboarding-splash--leaving .onboarding-splash__content {
+  pointer-events: none;
+}
+
+.onboarding-splash--hiding .onboarding-splash__copy,
+.onboarding-splash--zooming .onboarding-splash__copy,
+.onboarding-splash--leaving .onboarding-splash__copy {
+  opacity: 0;
+  filter: blur(3px);
+  transform: translateY(-10px);
+}
+
+.onboarding-splash--hiding .onboarding-splash__ring,
+.onboarding-splash--zooming .onboarding-splash__ring,
+.onboarding-splash--leaving .onboarding-splash__ring {
+  opacity: 0;
+  transform: scale(0.94);
+  transition:
+    opacity 0.5s ease,
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.onboarding-splash--zooming .onboarding-splash__background,
+.onboarding-splash--leaving .onboarding-splash__background {
+  transform: scale(3);
+}
+
+.onboarding-splash--leaving {
+  animation: onboardingRevealLanding 0.7s ease both;
+}
+
+@keyframes onboardingRipple {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  14% {
+    opacity: 0.7;
+  }
+  72%, 100% {
+    opacity: 0;
+    transform: scale(1.24);
+  }
+}
+
+@keyframes onboardingBackgroundEnter {
+  from { transform: scale(3); }
+  to { transform: scale(1); }
+}
+
+@keyframes onboardingContentEnter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes onboardingRevealLanding {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (max-width: 640px) {
+  .onboarding-splash__content { top: 30%; }
+  .onboarding-splash__ring { width: 112px; height: 112px; }
+  .onboarding-splash__icon { width: 82px; height: 82px; }
+  .onboarding-splash__icon img { width: 48px; height: 48px; }
+  .onboarding-splash__heading { font-size: 42px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-splash__background,
+  .onboarding-splash__content {
+    transition-duration: 0.01ms;
+  }
+
+  .onboarding-splash__ring::before,
+  .onboarding-splash__ring::after {
+    animation: none;
+    opacity: 0;
+  }
+  .onboarding-splash--ready .onboarding-splash__background,
+  .onboarding-splash--ready .onboarding-splash__content,
+  .onboarding-splash--leaving {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(36,50,69,0.18); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(36,50,69,0.3); }
+
+/* ── Keyframe animations ─────────────────────────────────────────────────── */
+
+/* 1 — Hero video / background fade-in */
+@keyframes heroBgReveal {
+  0%   { opacity: 0; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* 2 — Text block fade-up into hero */
+@keyframes heroTextReveal {
+  0%   { opacity: 0; transform: translateY(32px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* 3 — Nav slide down */
+@keyframes navReveal {
+  0%   { opacity: 0; transform: translateY(-22px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* 4 — Word highlight glow pulse */
+@keyframes wordGlow {
+  0%   { text-shadow: 0 0 0 rgba(13,233,195,0); }
+  40%  { text-shadow: 0 0 20px rgba(13,233,195,0.9), 0 0 40px rgba(13,233,195,0.4); }
+  100% { text-shadow: 0 0 10px rgba(13,233,195,0.5); }
+}
+
+/* 5 — Section fade-in-up */
+@keyframes fadeInUp {
+  0%   { opacity: 0; transform: translateY(40px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* 6 — Ken Burns slow zoom on video */
+@keyframes kenBurns {
+  0%   { transform: scale(1)    translate(0, 0); }
+  50%  { transform: scale(1.06) translate(-1%, -1%); }
+  100% { transform: scale(1.03) translate(1%, 0); }
+}
+
+/* 7 — Cloud scroll-out fog */
+/* (applied via inline style driven by JS) */
+
+/* ── Static utility classes ──────────────────────────────────────────────── */
+
+.hero-bg-playing {
+  animation: heroBgReveal 1.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.hero-text-visible {
+  animation: heroTextReveal 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.nav-visible {
+  animation: navReveal 0.8s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Quran word states */
+.qword { display: inline; transition: color 0.2s ease, text-shadow 0.3s ease; }
+.qword--active {
+  color: #0de9c3 !important;
+  animation: wordGlow 0.6s ease forwards;
+}
+.qword--done { color: #0de9c3 !important; opacity: 0.88; }
+
+.quran-audio-control {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 50%;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.38),
+    rgba(255, 255, 255, 0.14)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 8px 28px rgba(36, 50, 69, 0.13),
+    0 0 22px rgba(13, 233, 195, 0.12);
+  color: #243245;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    background-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.quran-audio-control svg {
+  width: 24px;
+  height: 24px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.quran-audio-control:hover:not(:disabled) {
+  background: rgba(103, 255, 226, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 10px 30px rgba(36, 50, 69, 0.16),
+    0 0 28px rgba(13, 233, 195, 0.26);
+  transform: translateY(-2px) scale(1.04);
+}
+
+.quran-audio-control:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.quran-audio-control:focus-visible {
+  outline: 2px solid #0aaf92;
+  outline-offset: 4px;
+}
+
+.quran-audio-control:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+/* Section scroll-reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(36px);
+  transition: opacity 0.75s cubic-bezier(0.4,0,0.2,1),
+              transform 0.75s cubic-bezier(0.4,0,0.2,1);
+}
+.reveal.in { opacity: 1; transform: translateY(0); }
+
+.reveal-card {
+  opacity: 0;
+  transform: translateY(24px) scale(0.97);
+  transition: opacity 0.6s cubic-bezier(0.4,0,0.2,1),
+              transform 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+.reveal-card.in { opacity: 1; transform: none; }
+
+/* Nav item — hover: green text + green underline grows; active: stays green + underline */
+.nav-btn-item { position: relative; }
+
+.nav-fade {
+  height: 190px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.12) 34%,
+    rgba(255, 255, 255, 0.05) 64%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  mask-image: linear-gradient(180deg, #000 0%, #000 38%, rgba(0, 0, 0, 0.65) 68%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 38%, rgba(0, 0, 0, 0.65) 68%, transparent 100%);
+}
+
+
+/* Button hover lift */
+.btn-lift {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+.btn-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(13,233,195,0.3);
+}
+.btn-lift:active { transform: translateY(0); }
+
+/* CTA hover — lighter green surface with a soft luminous halo */
+.cta-surface {
+  background-color: #0de9c3;
+  transition: background-color 0.22s ease;
+}
+
+.cta-gradient {
+  background: radial-gradient(ellipse at center, #0de9c3 0%, #0ea68b 100%);
+}
+
+.cta-button {
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.22s ease, background-color 0.22s ease;
+}
+
+.cta-button:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 10px rgba(255, 255, 255, 0.35),
+    0 0 18px rgba(13, 233, 195, 0.65);
+}
+
+.cta-button.cta-surface:hover,
+.cta-button:hover .cta-surface {
+  background-color: #67ffe2;
+}
+
+.cta-button:hover .cta-gradient {
+  background: radial-gradient(ellipse at center, #78ffe7 0%, #20d8b9 100%);
+}
+
+.cta-button:hover .cta-card-surface {
+  background-color: #67ffe2;
+}
+
+.cta-button:active {
+  transform: translateY(0);
+}
+
+/* Card hover lift & active click effect */
+.card-lift {
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(36, 50, 69, 0.09);
+}
+.card-lift:active {
+  transform: scale(0.974);
+  box-shadow: 0 2px 8px rgba(36, 50, 69, 0.08);
+  transition-duration: 0.08s;
+}
+
+
+/* ── Mobile Navigation Drawer Animations ─────────────────────────────────── */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
