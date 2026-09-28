@@ -33,8 +33,8 @@ export function playSoundEffect(
     noiseFilter.Q.value = 0.6;
     const noiseGain = context.createGain();
     noiseGain.gain.setValueAtTime(0, start);
-    noiseGain.gain.linearRampToValueAtTime(0.08, start + 0.6);
-    noiseGain.gain.linearRampToValueAtTime(0.055, start + duration * 0.7);
+    noiseGain.gain.linearRampToValueAtTime(0.02, start + 0.6);
+    noiseGain.gain.linearRampToValueAtTime(0.014, start + duration * 0.7);
     noiseGain.gain.linearRampToValueAtTime(0, start + duration);
     noiseSource.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
@@ -42,14 +42,14 @@ export function playSoundEffect(
     noiseSource.start(start);
     noiseSource.stop(start + duration);
 
-    // 2. Detuned drone oscillators — layered celestial pad
+    // 2. Detuned drone oscillators — layered celestial pad (gentle volume)
     const drones: [number, number, number, number][] = [
       // [freq, detune_cents, attack, volume]
-      [174, 0,    0.4, 0.09],
-      [261, -8,   0.7, 0.07],
-      [349, +12,  1.0, 0.055],
-      [523, -5,   1.4, 0.038],
-      [174, +18,  0.2, 0.045],
+      [174, 0,    0.4, 0.022],
+      [261, -8,   0.7, 0.016],
+      [349, +12,  1.0, 0.012],
+      [523, -5,   1.4, 0.008],
+      [174, +18,  0.2, 0.010],
     ];
 
     drones.forEach(([freq, detune, attack, vol]) => {
@@ -75,7 +75,7 @@ export function playSoundEffect(
     shimmer.frequency.setValueAtTime(1046, start);
     shimmer.frequency.linearRampToValueAtTime(1320, start + 1.2);
     shimmerG.gain.setValueAtTime(0, start);
-    shimmerG.gain.linearRampToValueAtTime(0.025, start + 0.5);
+    shimmerG.gain.linearRampToValueAtTime(0.006, start + 0.5);
     shimmerG.gain.linearRampToValueAtTime(0, start + 2.0);
     shimmer.connect(shimmerG);
     shimmerG.connect(context.destination);
@@ -130,7 +130,7 @@ export function playSoundEffect(
     tap.buffer = tapBuf;
     tapFilter.type = "highpass";
     tapFilter.frequency.value = 2200;
-    tapGain.gain.setValueAtTime(0.55, start);
+    tapGain.gain.setValueAtTime(0.32, start);
     tapGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.022);
     tap.connect(tapFilter);
     tapFilter.connect(tapGain);
@@ -234,13 +234,14 @@ export function useSoundEffects() {
   };
 }
 
-// ── useCloudScroll — scroll-driven airy cloud ambient ────────────────────────
-// Creates looping audio nodes whose volume tracks heroScrollProgress in real time.
-// Call setCloudGain(p) every scroll frame with the smoothstepped progress (0–1).
+// ── useCloudScroll — calm, soothing, ethereal cloud ambient ───────────────────
+// Creates gentle warm atmospheric sound that breathes with the hero transition.
+// Auto-silences immediately if scrolling pauses, completely eliminating any stuck sound.
 export function useCloudScroll(ctxRef: React.MutableRefObject<AudioContext | null>) {
-  const masterGain = useRef<GainNode | null>(null);
-  const started    = useRef(false);
-  const nodes      = useRef<AudioNode[]>([]);
+  const masterGain   = useRef<GainNode | null>(null);
+  const started      = useRef(false);
+  const nodes        = useRef<AudioNode[]>([]);
+  const silenceTimer = useRef<number | null>(null);
 
   const start = (context: AudioContext) => {
     if (started.current) return;
@@ -252,58 +253,93 @@ export function useCloudScroll(ctxRef: React.MutableRefObject<AudioContext | nul
     master.connect(context.destination);
     masterGain.current = master;
 
-    // Soft airy noise — filtered above 800Hz, no low rumble
+    // 1. Soft brownian/pink noise (warm, velvety breath of air — ZERO harsh hiss)
     const bufLen = sr * 4;
     const buf = context.createBuffer(1, bufLen, sr);
     const d = buf.getChannelData(0);
-    for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+    let b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < bufLen; i++) {
+      const white = Math.random() * 2 - 1;
+      b0 = 0.99 * b0 + white * 0.05;
+      b1 = 0.95 * b1 + white * 0.08;
+      b2 = 0.85 * b2 + white * 0.12;
+      d[i] = (b0 + b1 + b2) * 0.45;
+    }
 
     const nSrc = context.createBufferSource();
     nSrc.buffer = buf;
     nSrc.loop = true;
 
-    const hp = context.createBiquadFilter();
-    hp.type = "highpass";
-    hp.frequency.value = 800;
-    hp.Q.value = 0.3;
-
-    const bp = context.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.frequency.value = 1400;
-    bp.Q.value = 0.4;
+    // Gentle lowpass at 360Hz so it sounds like a whisper of soft air
+    const lp = context.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 360;
+    lp.Q.value = 0.4;
 
     const noiseGain = context.createGain();
-    noiseGain.gain.value = 0.12;
+    noiseGain.gain.value = 0.03;
 
-    nSrc.connect(hp);
-    hp.connect(bp);
-    bp.connect(noiseGain);
+    nSrc.connect(lp);
+    lp.connect(noiseGain);
     noiseGain.connect(master);
     nSrc.start();
 
-    // Gentle 528Hz sine — barely perceptible warmth
-    const osc = context.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = 528;
-    const oscGain = context.createGain();
-    oscGain.gain.value = 0.025;
-    osc.connect(oscGain);
-    oscGain.connect(master);
-    osc.start();
+    // 2. Calming dual-sine ambient chord (F4 349.2Hz + C5 523.2Hz)
+    const osc1 = context.createOscillator();
+    osc1.type = "sine";
+    osc1.frequency.value = 349.23;
+    const osc1Gain = context.createGain();
+    osc1Gain.gain.value = 0.007;
+    osc1.connect(osc1Gain);
+    osc1Gain.connect(master);
+    osc1.start();
 
-    nodes.current = [nSrc, osc, hp, bp, noiseGain, oscGain, master];
+    const osc2 = context.createOscillator();
+    osc2.type = "sine";
+    osc2.frequency.value = 523.25;
+    const osc2Gain = context.createGain();
+    osc2Gain.gain.value = 0.004;
+    osc2.connect(osc2Gain);
+    osc2Gain.connect(master);
+    osc2.start();
+
+    nodes.current = [nSrc, osc1, osc2, lp, noiseGain, osc1Gain, osc2Gain, master];
   };
 
   const setCloudGain = (p: number) => {
     const context = ctxRef.current;
     if (!context || context.state !== "running") return;
-    if (p > 0 && !started.current) start(context);
+    if (p > 0.005 && !started.current) start(context);
     const g = masterGain.current;
     if (!g) return;
-    g.gain.setTargetAtTime(p, context.currentTime, 0.08);
+
+    if (silenceTimer.current) {
+      window.clearTimeout(silenceTimer.current);
+      silenceTimer.current = null;
+    }
+
+    if (p <= 0.01) {
+      g.gain.setTargetAtTime(0, context.currentTime, 0.04);
+      return;
+    }
+
+    // Set smooth gentle gain (max 0.03)
+    const target = Math.min(Math.max(p, 0), 1) * 0.03;
+    g.gain.setTargetAtTime(target, context.currentTime, 0.06);
+
+    // Auto-silence if scrolling pauses for more than 60ms
+    silenceTimer.current = window.setTimeout(() => {
+      if (masterGain.current && context.state === "running") {
+        masterGain.current.gain.setTargetAtTime(0, context.currentTime, 0.08);
+      }
+    }, 60);
   };
 
   const stop = () => {
+    if (silenceTimer.current) {
+      window.clearTimeout(silenceTimer.current);
+      silenceTimer.current = null;
+    }
     nodes.current.forEach(n => {
       try { (n as AudioScheduledSourceNode).stop?.(); } catch (_) {}
     });

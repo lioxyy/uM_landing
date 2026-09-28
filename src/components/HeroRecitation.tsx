@@ -15,7 +15,6 @@ interface HeroRecitationProps {
   onToggleRecitation: () => void;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onVideoCanPlay?: () => void;
-  onCloudFade?: () => void;
   onScrollProgress?: (p: number) => void;
 }
 
@@ -28,16 +27,63 @@ export function HeroRecitation({
   onToggleRecitation,
   videoRef,
   onVideoCanPlay,
-  onCloudFade,
   onScrollProgress,
 }: HeroRecitationProps) {
   const heroScrollRef = useRef<HTMLDivElement | null>(null);
   const [heroScrollProgress, setHeroScrollProgress] = useState(0);
   const [heroVideoVisible, setHeroVideoVisible] = useState(false);
-  const cloudSoundFired = useRef(false);
+  const scrollProgressRef = useRef(0);
+  const heroBoundsRef = useRef({ sectionStart: 0, distance: 1 });
+  const isAutoScrollingRef = useRef(false);
 
   useEffect(() => {
     let frame = 0;
+    let lastScrollY = window.scrollY;
+    let snapTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const computeBounds = () => {
+      const section = heroScrollRef.current;
+      if (!section) return;
+      const sectionStart = section.getBoundingClientRect().top + window.scrollY;
+      const distance = Math.max(section.offsetHeight - window.innerHeight, 1);
+      heroBoundsRef.current = { sectionStart, distance };
+    };
+
+    // Smooth RAF auto-scroll with cubic easing
+    const autoScrollTo = (targetY: number, duration = 850) => {
+      if (isAutoScrollingRef.current) return;
+      isAutoScrollingRef.current = true;
+      const startY = window.scrollY;
+      const diff = targetY - startY;
+
+      if (Math.abs(diff) < 2) {
+        window.scrollTo(0, targetY);
+        isAutoScrollingRef.current = false;
+        return;
+      }
+
+      const startTime = performance.now();
+      const easeInOutCubic = (t: number) =>
+        t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+      const step = (now: number) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = easeInOutCubic(progress);
+        window.scrollTo(0, startY + diff * ease);
+
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        } else {
+          window.scrollTo(0, targetY);
+          setTimeout(() => {
+            isAutoScrollingRef.current = false;
+          }, 80);
+        }
+      };
+
+      requestAnimationFrame(step);
+    };
 
     const update = () => {
       cancelAnimationFrame(frame);
@@ -45,29 +91,134 @@ export function HeroRecitation({
         const section = heroScrollRef.current;
         if (!section) return;
 
-        const start = section.getBoundingClientRect().top + window.scrollY;
-        const distance = Math.max(section.offsetHeight - window.innerHeight, 1);
-        const progress = (window.scrollY - start) / distance;
+        const { sectionStart, distance } = heroBoundsRef.current;
+        const progress = (window.scrollY - sectionStart) / distance;
         const clamped = Math.min(Math.max(progress, 0), 1);
-        setHeroScrollProgress(clamped);
-        // Bell curve: 0 at start, peaks mid-scroll, back to 0 when hero is gone
-        onScrollProgress?.(Math.sin(Math.PI * clamped));
 
-        // Fire cloud sound once when fade overlay first appears
-        if (clamped > 0.04 && !cloudSoundFired.current) {
-          cloudSoundFired.current = true;
-          onCloudFade?.();
+        // Velocity for sound — px moved since last frame
+        const velocity = Math.abs(window.scrollY - lastScrollY);
+        lastScrollY = window.scrollY;
+
+        scrollProgressRef.current = clamped;
+        setHeroScrollProgress(clamped);
+
+        if (clamped <= 0.01 || clamped >= 0.99) {
+          onScrollProgress?.(0);
+        } else {
+          // Bell curve: 0 at start, peak at mid-scroll, 0 at end
+          const bellCurve = Math.sin(Math.PI * clamped);
+          const speedFactor = Math.min(Math.max(velocity / 8, 0.4), 1);
+          onScrollProgress?.(bellCurve * speedFactor);
+        }
+
+        // Safety snap if user dragged scrollbar and let go midway
+        if (clamped > 0.05 && clamped < 0.95 && !isAutoScrollingRef.current) {
+          if (snapTimer) clearTimeout(snapTimer);
+          snapTimer = setTimeout(() => {
+            if (isAutoScrollingRef.current) return;
+            const { sectionStart: s, distance: d } = heroBoundsRef.current;
+            const target = scrollProgressRef.current < 0.5 ? s : s + d;
+            autoScrollTo(target, 600);
+          }, 120);
         }
       });
     };
 
+    // Auto-scroll triggers on wheel
+    const onWheel = (e: WheelEvent) => {
+      const { sectionStart, distance } = heroBoundsRef.current;
+      const currentY = window.scrollY;
+
+      if (isAutoScrollingRef.current) {
+        e.preventDefault();
+        return;
+      }
+
+      // Case 1: In the hero top area, scrolling down -> auto-scroll to About Us
+      if (currentY < sectionStart + distance * 0.45 && e.deltaY > 0) {
+        e.preventDefault();
+        autoScrollTo(sectionStart + distance, 850);
+        return;
+      }
+
+      // Case 2: Near bottom of hero / at About Us, scrolling up -> auto-scroll back to Hero
+      if (currentY >= sectionStart + distance * 0.75 && currentY <= sectionStart + distance + 30 && e.deltaY < 0) {
+        e.preventDefault();
+        autoScrollTo(sectionStart, 850);
+        return;
+      }
+
+      // Case 3: In the middle of hero
+      if (currentY > sectionStart && currentY < sectionStart + distance) {
+        e.preventDefault();
+        autoScrollTo(e.deltaY > 0 ? sectionStart + distance : sectionStart, 700);
+      }
+    };
+
+    // Auto-scroll triggers on touch (mobile / tablet / trackpad)
+    let touchStartY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (isAutoScrollingRef.current) {
+        e.preventDefault();
+        return;
+      }
+      const { sectionStart, distance } = heroBoundsRef.current;
+      const currentY = window.scrollY;
+      const deltaY = touchStartY - e.touches[0].clientY;
+
+      if (Math.abs(deltaY) < 14) return;
+
+      if (currentY < sectionStart + distance * 0.45 && deltaY > 0) {
+        e.preventDefault();
+        autoScrollTo(sectionStart + distance, 850);
+      } else if (currentY <= sectionStart + distance + 30 && deltaY < 0) {
+        e.preventDefault();
+        autoScrollTo(sectionStart, 850);
+      }
+    };
+
+    // Auto-scroll triggers on arrow keys / space
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isAutoScrollingRef.current) {
+        if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", " "].includes(e.key)) {
+          e.preventDefault();
+        }
+        return;
+      }
+      const { sectionStart, distance } = heroBoundsRef.current;
+      const currentY = window.scrollY;
+
+      if (["ArrowDown", "PageDown", " "].includes(e.key) && currentY < sectionStart + distance * 0.45) {
+        e.preventDefault();
+        autoScrollTo(sectionStart + distance, 850);
+      } else if (["ArrowUp", "PageUp"].includes(e.key) && currentY <= sectionStart + distance + 30) {
+        e.preventDefault();
+        autoScrollTo(sectionStart, 850);
+      }
+    };
+
+    computeBounds();
     update();
     window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    window.addEventListener("resize", () => { computeBounds(); update(); });
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("keydown", onKeyDown);
+
     return () => {
       cancelAnimationFrame(frame);
+      if (snapTimer) clearTimeout(snapTimer);
       window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+      window.removeEventListener("resize", computeBounds);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("keydown", onKeyDown);
     };
   }, []);
 
