@@ -50,7 +50,7 @@ export function HeroRecitation({
     };
 
     // Smooth RAF auto-scroll with cubic easing and direct sound synthesis synchronization
-    const autoScrollTo = (targetY: number, duration = 1350) => {
+    const autoScrollTo = (targetY: number, duration = 2600) => {
       if (isAutoScrollingRef.current) return;
       isAutoScrollingRef.current = true;
       const startY = window.scrollY;
@@ -117,7 +117,7 @@ export function HeroRecitation({
           snapTimer = setTimeout(() => {
             if (isAutoScrollingRef.current) return;
             const target = clamped < 0.5 ? 0 : aboutTarget;
-            autoScrollTo(target, 900);
+            autoScrollTo(target, 1600);
           }, 120);
         }
       });
@@ -136,21 +136,21 @@ export function HeroRecitation({
       // Case 1: In the hero, scrolling down -> auto-scroll straight to About Us
       if (currentY < aboutTarget * 0.45 && e.deltaY > 0) {
         e.preventDefault();
-        autoScrollTo(aboutTarget, 1350);
+        autoScrollTo(aboutTarget, 2600);
         return;
       }
 
       // Case 2: At About Us, scrolling up -> auto-scroll straight back to Hero
       if (currentY >= aboutTarget * 0.65 && currentY <= aboutTarget + 50 && e.deltaY < 0) {
         e.preventDefault();
-        autoScrollTo(0, 1350);
+        autoScrollTo(0, 2600);
         return;
       }
 
       // Case 3: In the middle transition of hero
       if (currentY > 0 && currentY < aboutTarget) {
         e.preventDefault();
-        autoScrollTo(e.deltaY > 0 ? aboutTarget : 0, 1050);
+        autoScrollTo(e.deltaY > 0 ? aboutTarget : 0, 2000);
       }
     };
 
@@ -173,10 +173,10 @@ export function HeroRecitation({
 
       if (currentY < aboutTarget * 0.45 && deltaY > 0) {
         e.preventDefault();
-        autoScrollTo(aboutTarget, 1350);
+        autoScrollTo(aboutTarget, 2600);
       } else if (currentY <= aboutTarget + 50 && deltaY < 0) {
         e.preventDefault();
-        autoScrollTo(0, 1350);
+        autoScrollTo(0, 2600);
       }
     };
 
@@ -193,10 +193,10 @@ export function HeroRecitation({
 
       if (["ArrowDown", "PageDown", " "].includes(e.key) && currentY < aboutTarget * 0.45) {
         e.preventDefault();
-        autoScrollTo(aboutTarget, 1350);
+        autoScrollTo(aboutTarget, 2600);
       } else if (["ArrowUp", "PageUp"].includes(e.key) && currentY <= aboutTarget + 50) {
         e.preventDefault();
-        autoScrollTo(0, 1350);
+        autoScrollTo(0, 2600);
       }
     };
 
