@@ -119,7 +119,7 @@ export function playSoundEffect(
 
   // ── CLICK — crisp physical tap ───────────────────────────────────────────
   if (sound === "click") {
-    // Transient: 5ms white noise burst
+    // Transient: 5ms white noise burst (subtle tap)
     const tapFrames = Math.ceil(context.sampleRate * 0.005);
     const tapBuf = context.createBuffer(1, tapFrames, context.sampleRate);
     const td = tapBuf.getChannelData(0);
@@ -130,21 +130,21 @@ export function playSoundEffect(
     tap.buffer = tapBuf;
     tapFilter.type = "highpass";
     tapFilter.frequency.value = 2200;
-    tapGain.gain.setValueAtTime(0.32, start);
+    tapGain.gain.setValueAtTime(0.12, start);
     tapGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.022);
     tap.connect(tapFilter);
     tapFilter.connect(tapGain);
     tapGain.connect(context.destination);
     tap.start(start);
 
-    // Body: short sine chirp 900→600 Hz
+    // Body: short gentle sine chirp 900→600 Hz
     const chirp = context.createOscillator();
     const chirpGain = context.createGain();
     chirp.type = "sine";
     chirp.frequency.setValueAtTime(900, start);
     chirp.frequency.exponentialRampToValueAtTime(600, start + 0.06);
     chirpGain.gain.setValueAtTime(0.0001, start);
-    chirpGain.gain.linearRampToValueAtTime(0.09, start + 0.004);
+    chirpGain.gain.linearRampToValueAtTime(0.035, start + 0.004);
     chirpGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.08);
     chirp.connect(chirpGain);
     chirpGain.connect(context.destination);
